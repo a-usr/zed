@@ -41,6 +41,8 @@ use windows::{
         },
     },
 };
+use copypasta::windows_clipboard::WindowsClipboardContext;
+use copypasta::ClipboardProvider;
 
 use crate::{
     try_get_window_inner, Action, AnyWindowHandle, BackgroundExecutor, ClipboardItem, CursorStyle,
@@ -73,6 +75,7 @@ pub(crate) struct WindowsPlatformInner {
     pub(crate) window_handles: RefCell<HashSet<AnyWindowHandle>>,
     pub(crate) event: HANDLE,
     pub(crate) settings: RefCell<WindowsPlatformSystemSettings>,
+    clipboard: Rc<RefCell<WindowsClipboardContext>>,
 }
 
 impl Drop for WindowsPlatformInner {
@@ -156,6 +159,7 @@ impl WindowsPlatform {
         let callbacks = Mutex::new(Callbacks::default());
         let window_handles = RefCell::new(HashSet::new());
         let settings = RefCell::new(WindowsPlatformSystemSettings::new());
+        let clipboard = Rc::new(RefCell::new(WindowsClipboardContext::new().unwrap()));
         let inner = Rc::new(WindowsPlatformInner {
             background_executor,
             foreground_executor,
@@ -165,6 +169,7 @@ impl WindowsPlatform {
             window_handles,
             event,
             settings,
+            clipboard
         });
         Self { inner }
     }
@@ -490,12 +495,21 @@ impl Platform for WindowsPlatform {
 
     // todo(windows)
     fn write_to_clipboard(&self, item: ClipboardItem) {
-        unimplemented!()
+        if item.text.len() > 0{
+            self.inner.clipboard.borrow_mut().set_contents(item.text).unwrap();
+        }
     }
 
     // todo(windows)
     fn read_from_clipboard(&self) -> Option<ClipboardItem> {
-        unimplemented!()
+        let contents = self.inner.clipboard.borrow_mut().get_contents();
+        match contents {
+            Ok(text) => Some(ClipboardItem {
+                metadata: None,
+                text,
+            }),
+            _ => None,
+        }
     }
 
     // todo(windows)
